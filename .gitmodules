@@ -1,0 +1,7 @@
+[submodule "chasm"]
+	path = chasm
+	url = https://github.com/AsianIntel/chasm
+[submodule "units"]
+	path = units
+	url = https://github.com/AsianIntel/units/
+	branch = dev
