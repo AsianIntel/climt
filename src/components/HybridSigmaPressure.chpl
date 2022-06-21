@@ -7,14 +7,17 @@ module HybridSigmaPressure {
     use DataArray;
     use LinearAlgebra;
 
+    type dimensionless = UnitMarker(0, 0, 0, 0, 0, 0, 0);
+    type pressure = UnitMarker(-1, 1, -2, 0, 0, 0, 0);
+
     class HybridSigmaPressureDiagnosticComponent: DiagnosticComponent {
         proc init() {
-            var input_properties = new map(string, shared Properties);
+            var input_properties = new map(string, shared AbstractProperties);
             input_properties.add("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels", new shared Properties({"interface_levels", "*"}, new UnitMarker(0, 0, 0, 0, 0, 0, 0, 1, 0, "")));
             input_properties.add("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels", new shared Properties({"interface_levels", "*"}, new UnitMarker(0, 0, 0, 0, 0, 0, 0, 1, 0, "")));
             input_properties.add("surface_air_pressure", new shared Properties({"*"}, new UnitMarker(-1, 1, -2, 0, 1, 0, 0, 1, 0, "Pa")));
 
-            var diagnostic_properties = new map(string, shared Properties);
+            var diagnostic_properties = new map(string, shared AbstractProperties);
             diagnostic_properties.add("air_pressure", new shared Properties({"mid_levels", "*"}, new UnitMarker(-1, 1, -2, 0, 1, 0, 0, 1, 0, "Pa")));
             diagnostic_properties.add("air_pressure_on_interface_levels", new shared Properties({"interface_levels", "*"}, new UnitMarker(-1, 1, -2, 0, 1, 0, 0, 1, 0, "Pa")));
             super.init(input_properties, diagnostic_properties);
@@ -23,9 +26,9 @@ module HybridSigmaPressure {
         proc array_call(state: State) {
             var model_top_pressure = 20.0;
 
-            var a_coord = try! state.getValue("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels"): DataArray2(real);
-            var b_coord = try! state.getValue("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels"): DataArray2(real);
-            var surface_air_pressure = try! state.getValue("surface_air_pressure"): DataArray2(real);
+            var a_coord = try! state.getValue("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels"): DataArray2(real, dimensionless);
+            var b_coord = try! state.getValue("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels"): DataArray2(real, dimensionless);
+            var surface_air_pressure = try! state.getValue("surface_air_pressure"): DataArray2(real, pressure);
 
             var sap = surface_air_pressure.arr - model_top_pressure;
             var b = b_coord.arr.dot(sap);
@@ -49,8 +52,8 @@ module HybridSigmaPressure {
             }
             // writeln(p);
 
-            state.add("air_pressure", new shared DataArray2(p, a_coord.dimensions));
-            state.add("air_pressure_on_interface_levels", new shared DataArray2(p_interface, a_coord.dimensions));
+            state.add("air_pressure", new shared DataArray2(p, a_coord.dimensions, new pressure(1, 0, "Pa")));
+            state.add("air_pressure_on_interface_levels", new shared DataArray2(p_interface, a_coord.dimensions, new pressure(1, 0, "Pa")));
         }
     }
 }

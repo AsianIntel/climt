@@ -7,7 +7,7 @@ module SlabSurface {
 
     class SlabSurface: TendencyComponent {
         proc init() {
-            var input_properties = new map(string, shared Properties);
+            var input_properties = new map(string, shared AbstractProperties);
 
             var flux_marker = new UnitMarker(0, 1, -2, -1, 0, 0, 0, 1, 0, "Wb m^-2");
             input_properties.add("downwelling_longwave_flux_in_air", new shared Properties({"*", "interface_levels"}, flux_marker));
@@ -27,10 +27,10 @@ module SlabSurface {
             input_properties.add("heat_capacity_of_soil", new shared Properties({"*"}, new UnitMarker(2, 0, -2, 0, -1, 0, 0, 1, 0, "J kg^-1 degK^-1")));
             input_properties.add("sea_water_density", new shared Properties({"*"}, new UnitMarker(-3, 1, 0, 0, 0, 0, 0, 1, 0, "kg m^-3")));
 
-            var tendency_properties = new map(string, shared Properties);
+            var tendency_properties = new map(string, shared AbstractProperties);
             tendency_properties.add("surface_temperature", new shared Properties({"*"}, new UnitMarker(0, 0, -1, 0, 1, 0, 0, 1, 0, "K s^-1")));
 
-            var diagnostic_properties = new map(string, shared Properties);
+            var diagnostic_properties = new map(string, shared AbstractProperties);
             diagnostic_properties.add("depth_of_slab_surface", new shared Properties({"*"}, new UnitMarker(1, 0, 0, 0, 0, 0, 0, 1, 0, "m")));
 
             super.init(input_properties, tendency_properties, diagnostic_properties);

@@ -14,269 +14,280 @@ module climt {
 
   writeln("New library: climt");
 
-  proc get_atmospheric_grid(name: string, value: real, state: State, interface_: bool = false, horizontal: bool = false) {
-    var latitude = try! state.getValue("latitude"): DataArray2(real);
+  type dimensionless = UnitMarker(0, 0, 0, 0, 0, 0, 0);
+  type pressure = UnitMarker(-1, 1, -2, 0, 0, 0, 0);
+  type meter = UnitMarker(1, 0, 0, 0, 0, 0, 0);
+
+  proc get_atmospheric_grid(name: string, value: real, state: State, marker: UnitMarker, interface_: bool = false, horizontal: bool = false) {
+    var latitude = try! state.getValue("latitude"): DataArray2(real, dimensionless);
     var shape = latitude.arr.shape;
 
-    var hybrid_sigma_pressure = try! state.getValue("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels"): DataArray2(real);
+    var hybrid_sigma_pressure = try! state.getValue("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels"): DataArray2(real, dimensionless);
 
     if horizontal {
       var arr: [0..shape[1]-1, 0..shape[0]-1] real = value;
-      state.add(name, new shared DataArray2(arr, latitude.dimensions));
+      state.add(name, new shared DataArray2(arr, latitude.dimensions, marker));
     } else if interface_ {
       var arr: [0..hybrid_sigma_pressure.arr.shape[0]-1, 0..shape[1]-1, 0..shape[0]-1] real = value;
       var hsd = latitude.dimensions.these();
       var dom = {"interface_levels", hsd[0], hsd[1]};
-      state.add(name, new shared DataArray3(arr, dom));
+      state.add(name, new shared DataArray3(arr, dom, marker));
     } else {
       var arr: [0..hybrid_sigma_pressure.arr.shape[0]-2, 0..shape[1]-1, 0..shape[0]-1] real = value;
       var hsd = latitude.dimensions.these();
       var dom = {"mid_levels", hsd[0], hsd[1]};
-      state.add(name, new shared DataArray3(arr, dom));
+      state.add(name, new shared DataArray3(arr, dom, marker));
     }
   }
 
-  proc get_surface_grid(name: string, value, state: State) {
-    var latitude = try! state.getValue("latitude"): DataArray2(real);
+  proc get_surface_grid(name: string, value, state: State, marker: UnitMarker) {
+    var latitude = try! state.getValue("latitude"): DataArray2(real, dimensionless);
     var shape = latitude.arr.shape;
 
     var arr: [0..shape[1]-1, 0..shape[0]-1] value.type = value;
-    state.add(name, new shared DataArray2(arr, latitude.dimensions));
+    state.add(name, new shared DataArray2(arr, latitude.dimensions, marker));
   }
 
-  proc get_land_grid(name: string, value: real, state: State, horizontal: bool = false) {
-    var latitude = try! state.getValue("latitude"): DataArray2(real);
+  proc get_land_grid(name: string, value: real, state: State, marker: UnitMarker, horizontal: bool = false) {
+    var latitude = try! state.getValue("latitude"): DataArray2(real, dimensionless);
     var shape = latitude.arr.shape;
 
     if horizontal {
       var arr: [0..shape[1]-1, 0..shape[0]-1] value.type = value;
-      state.add(name, new shared DataArray2(arr, latitude.dimensions));
+      state.add(name, new shared DataArray2(arr, latitude.dimensions, marker));
     }
   }
 
-  proc get_ocean_grid(name: string, value: real, state: State, horizontal: bool = false) {
-    var latitude = try! state.getValue("latitude"): DataArray2(real);
+  proc get_ocean_grid(name: string, value: real, state: State, marker: UnitMarker, horizontal: bool = false) {
+    var latitude = try! state.getValue("latitude"): DataArray2(real, dimensionless);
     var shape = latitude.arr.shape;
 
     if horizontal {
       var arr: [0..shape[1]-1, 0..shape[0]-1] real = value;
-      state.add(name, new shared DataArray2(arr, latitude.dimensions));
+      state.add(name, new shared DataArray2(arr, latitude.dimensions, marker));
     }
   }
 
-  proc get_ice_grid(name: string, value: real, state: State, interface_: bool = false, horizontal: bool = false) {
-    var latitude = try! state.getValue("latitude"): DataArray2(real);
+  proc get_ice_grid(name: string, value: real, state: State, marker: UnitMarker, interface_: bool = false, horizontal: bool = false) {
+    var latitude = try! state.getValue("latitude"): DataArray2(real, dimensionless);
     var shape = latitude.arr.shape;
 
-    var height_on_ice = try! state.getValue("height_on_ice_interface_levels"): DataArray1(real);
+    var height_on_ice = try! state.getValue("height_on_ice_interface_levels"): DataArray1(real, meter);
 
     if horizontal {
       var arr: [0..shape[1]-1, 0..shape[0]-1] real = value;
-      state.add(name, new shared DataArray2(arr, latitude.dimensions));
+      state.add(name, new shared DataArray2(arr, latitude.dimensions, marker));
     } else if interface_ {
       var arr: [0..height_on_ice.arr.shape[0]-1, 0..shape[1]-1, 0..shape[0]-1] real = value;
       var hsd = latitude.dimensions.these();
       var dom = {"ice_interface_levels", hsd[0], hsd[1]};
-      state.add(name, new shared DataArray3(arr, dom));
+      state.add(name, new shared DataArray3(arr, dom, marker));
     } else {
       var arr: [0..height_on_ice.arr.shape[0]-2, 0..shape[1]-1, 0..shape[0]-1] real = value;
       var hsd = latitude.dimensions.these();
       var dom = {"ice_mid_levels", hsd[0], hsd[1]};
-      state.add(name, new shared DataArray3(arr, dom));
+      state.add(name, new shared DataArray3(arr, dom, marker));
     }
   }
 
   proc default_values(name: string, state: State) {
+    type velocity = UnitMarker(1, 0, -1, 0, 0, 0, 0);
+    type time_inverse = UnitMarker(0, 0, -1, 0, 0, 0, 0);
+    type mass_content = UnitMarker(-2, 1, 0, 0, 0, 0, 0);
+    type temperature = UnitMarker(0, 0, 1, 0, 0, 0, 0);
+    type length = UnitMarker(1, 0, 0, 0, 0, 0, 0);
+    type flux = UnitMarker(0, 1, -3, 0, 0, 0, 0);
+
     select name {
       when "air_temperature" {
-        get_atmospheric_grid(name, 290.0, state, false, false);
+        get_atmospheric_grid(name, 290.0, state, new temperature(1, 0, "degK"), false, false);
       } 
       when "northward_wind" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new velocity(1, 0, "m/s"), false, false);
       } 
       when "eastward_wind" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new velocity(1, 0, "m/s"), false, false);
       } 
       when "divergence_of_wind" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new time_inverse(1, 0, "s-1"), false, false);
       } 
       when "atmospheric_relative_vorticity" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new time_inverse(1, 0, "s-1"), false, false);
       } 
       when "specific_humidity" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, "kg/kg"), false, false);
       } 
       when "mole_fraction_of_carbon_dioxide_in_air" {
-        get_atmospheric_grid(name, 330e-6, state, false, false);
+        get_atmospheric_grid(name, 330e-6, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_methane_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_nitrous_oxide_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_oxygen_in_air" {
-        get_atmospheric_grid(name, 0.21, state, false, false);
+        get_atmospheric_grid(name, 0.21, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_nitrogen_in_air" {
-        get_atmospheric_grid(name, 0.78, state, false, false);
+        get_atmospheric_grid(name, 0.78, state,  new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_hydrogen_in_air" {
-        get_atmospheric_grid(name, 500e-9, state, false, false);
+        get_atmospheric_grid(name, 500e-9, state,  new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_cfc11_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_cfc12_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_cfc22_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mole_fraction_of_carbon_tetrachloride_in_air" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "cloud_area_fraction_in_atmosphere_layer" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, ""), false, false);
       } 
       when "mass_content_of_cloud_ice_in_atmosphere_layer" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new mass_content(1, 0, ""), false, false);
       } 
       when "mass_content_of_cloud_liquid_water_in_atmosphere_layer" {
-        get_atmospheric_grid(name, 0.0, state, false, false);
+        get_atmospheric_grid(name, 0.0, state, new mass_content(1, 0, ""), false, false);
       } 
       when "cloud_ice_particle_size" {
-        get_atmospheric_grid(name, 20.0, state, false, false);
+        get_atmospheric_grid(name, 20.0, state, new length(1000000, 0, ""), false, false);
       } 
       when "cloud_water_droplet_radius" {
-        get_atmospheric_grid(name, 10.0, state, false, false);
+        get_atmospheric_grid(name, 10.0, state, new length(1000000, 0, ""), false, false);
       } 
       when "cloud_base_mass_flux" {
-        get_atmospheric_grid(name, 0.0, state, false, true);
+        get_atmospheric_grid(name, 0.0, state, new UnitMarker(-2, 1, -1, 0, 0, 0, 0, 1, 0, "kg m^-2 s^-1"), false, true);
       } 
       when "zenith_angle" {
-        get_atmospheric_grid(name, 0.0, state, false, true);
+        get_atmospheric_grid(name, 0.0, state, new dimensionless(1, 0, "radians"), false, true);
       } 
       when "downwelling_shortwave_flux_in_air" {
-        get_atmospheric_grid(name, 0.0, state, true, false);
+        get_atmospheric_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), true, false);
       } 
       when "downwelling_longwave_flux_in_air" {
-        get_atmospheric_grid(name, 0.0, state, true, false);
+        get_atmospheric_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), true, false);
       } 
       when "upwelling_shortwave_flux_in_air" {
-        get_atmospheric_grid(name, 0.0, state, true, false);
+        get_atmospheric_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), true, false);
       } 
       when "upwelling_longwave_flux_in_air" {
-        get_atmospheric_grid(name, 0.0, state, true, false);
+        get_atmospheric_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), true, false);
       } 
       when "surface_specific_humidity" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new dimensionless(1, 0, ""));
       } 
       when "surface_temperature" {
-        get_surface_grid(name, 300.0, state);
+        get_surface_grid(name, 300.0, state, new temperature(1, 0, "degK"));
       } 
       when "soil_surface_temperature" {
-        get_surface_grid(name, 300.0, state);
+        get_surface_grid(name, 300.0, state, new temperature(1, 0, "degK"));
       } 
       when "surface_geopotential" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new UnitMarker(2, 0, -2, 0, 0, 0, 0, 1, 0, "m^2 s^-2"));
       } 
       when "surface_thermal_capacity" {
-        get_surface_grid(name, 4.1813e3, state);
+        get_surface_grid(name, 4.1813e3, state, new UnitMarker(2, 0, -2, 0, -1, 0, 0, 1, 0, "J kg^-1 degK^-1"));
       } 
       when "depth_of_slab_surface" {
-        get_surface_grid(name, 50.0, state);
+        get_surface_grid(name, 50.0, state, new length(1, 0, "m"));
       } 
       when "surface_material_density" {
-        get_surface_grid(name, 1000.0, state);
+        get_surface_grid(name, 1000.0, state, new UnitMarker(-3, 1, 0, 0, 0, 0, 0, 1, 0, "kg m^-3"));
       } 
       when "surface_albedo_for_direct_shortwave" {
-        get_surface_grid(name, 0.06, state);
+        get_surface_grid(name, 0.06, state, new dimensionless(1, 0, ""));
       } 
       when "surface_albedo_for_diffuse_shortwave" {
-        get_surface_grid(name, 0.06, state);
+        get_surface_grid(name, 0.06, state, new dimensionless(1, 0, ""));
       } 
       when "surface_albedo_for_direct_near_infrared" {
-        get_surface_grid(name, 0.06, state);
+        get_surface_grid(name, 0.06, state, new dimensionless(1, 0, ""));
       } 
       when "surface_albedo_for_diffuse_near_infrared" {
-        get_surface_grid(name, 0.06, state);
+        get_surface_grid(name, 0.06, state, new dimensionless(1, 0, ""));
       } 
       when "surface_roughness_length" {
-        get_surface_grid(name, 0.0002, state);
+        get_surface_grid(name, 0.0002, state, new dimensionless(1, 0, ""));
       } 
       when "surface_drag_coefficient_for_heat_in_air" {
-        get_surface_grid(name, 0.0012, state);
+        get_surface_grid(name, 0.0012, state, new dimensionless(1, 0, ""));
       } 
       when "surface_drag_coefficient_for_momentum_in_air" {
-        get_surface_grid(name, 0.0012, state);
+        get_surface_grid(name, 0.0012, state, new dimensionless(1, 0, ""));
       } 
       when "area_type" {
-        get_surface_grid(name, 0: int, state);
+        get_surface_grid(name, 0: int, state, new dimensionless(1, 0, ""));
       } 
       when "surface_upward_sensible_heat_flux" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new flux(1, 0, "W m^-2"));
       } 
       when"surface_upward_latent_heat_flux" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new flux(1, 0, "W m^-2"));
       } 
       when "soil_type" {
-        get_land_grid(name, 0: int, state, true);
+        get_land_grid(name, 0: int, state, new dimensionless(1, 0, ""), true);
       } 
       when "soil_temperature" {
-        get_land_grid(name, 274.0, state, true);
+        get_land_grid(name, 274.0, state, new temperature(1, 0, "degK"), true);
       } 
       when "soil_layer_thickness" {
-        get_land_grid(name, 50.0, state, true);
+        get_land_grid(name, 50.0, state, new length(1, 0, "m"), true);
       } 
       when "upward_heat_flux_at_ground_level_in_soil" {
-        get_land_grid(name, 0.0, state, true);
+        get_land_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), true);
       } 
       when "heat_capacity_of_soil" {
-        get_land_grid(name, 2000.0, state, true);
+        get_land_grid(name, 2000.0, state, new UnitMarker(2, 0, -2, 0, -1, 0, 0, 1, 0, "J kg^-1 degK^-1"), true);
       } 
       when "sea_water_density" {
-        get_ocean_grid(name, 1.029e3, state, true);
+        get_ocean_grid(name, 1.029e3, state, new UnitMarker(-3, 1, 0, 0, 0, 0, 0, 1, 0, "kg m^-3"), true);
       } 
       when "sea_surface_temperature" {
-        get_ocean_grid(name, 300.0, state, true);
+        get_ocean_grid(name, 300.0, state, new temperature(1, 0, "degK"), true);
       } 
       when "ocean_mixed_layer_thickness" {
-        get_ocean_grid(name, 50.0, state, true);
+        get_ocean_grid(name, 50.0, state, new length(1, 0, "m"), true);
       } 
       when "snow_and_ice_temperature" {
-        get_ice_grid(name, 270.0, state, true, false);
+        get_ice_grid(name, 270.0, state, new temperature(1, 0, "degK"), true, false);
       } 
       when "heat_flux_into_sea_water_due_to_sea_ice" {
-        get_ice_grid(name, 0.0, state, false, true);
+        get_ice_grid(name, 0.0, state, new flux(1, 0, "W m^-2"), false, true);
       }
       when "land_ice_thickness" {
-        get_ice_grid(name, 0.0, state, false, true);
+        get_ice_grid(name, 0.0, state, new length(1, 0, "m"), false, true);
       } 
       when "sea_ice_thickness" {
-        get_ice_grid(name, 0.0, state, false, true);
+        get_ice_grid(name, 0.0, state, new length(1, 0, "m"), false, true);
       } 
       when "surface_snow_thickness" {
-        get_ice_grid(name, 0.0, state, false, true);
+        get_ice_grid(name, 0.0, state, new length(1, 0, "m"), false, true);
       } 
       when "solar_cycle_fraction" {
         var arr = [0.0];
         var dom: domain(string);
-        state.add(name, new shared DataArray1(arr, dom));
+        state.add(name, new shared DataArray1(arr, dom, new dimensionless(1, 0, "")));
       } 
       when "flux_adjustment_for_earth_sun_distance" {
         var arr = [1.0];
         var dom: domain(string);
-        state.add(name, new shared DataArray1(arr, dom));
+        state.add(name, new shared DataArray1(arr, dom, new dimensionless(1, 0, "")));
       } 
       when "lwe_thickness_of_soil_moisture_content" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new length(1, 0, "m"));
       } 
       when "convective_precipitation_rate" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new UnitMarker(1, 0, -1, 0, 0, 0, 0, 86400000, 0, "mm day^-1"));
       } 
       when "stratiform_precipitation_rate" {
-        get_surface_grid(name, 0.0, state);
+        get_surface_grid(name, 0.0, state, new UnitMarker(1, 0, -1, 0, 0, 0, 0, 1, 0, "m s^-1"));
       }
     }
   }
@@ -289,7 +300,7 @@ module climt {
     var return_state = get_hybrid_sigma_pressure_levels(nz + 1, p_surf_in_Pa, p_toa_in_Pa, proportion_isobaric_level, proportion_sigma_levels);
 
     var surface_arr: [0..ny-1, 0..nx-1] real = 1.0 * p_surf_in_Pa;
-    return_state.add("surface_air_pressure", new shared DataArray2(surface_arr, {y_name, x_name}));
+    return_state.add("surface_air_pressure", new shared DataArray2(surface_arr, {y_name, x_name}, new pressure(1, 0, "Pa")));
 
     var component = new HybridSigmaPressureDiagnosticComponent();
     component.array_call(return_state);
@@ -303,7 +314,7 @@ module climt {
         j += 1;
       }
     }
-    return_state.add("longitude", new shared DataArray2(two_dim_lons, {y_name, x_name}));
+    return_state.add("longitude", new shared DataArray2(two_dim_lons, {y_name, x_name}, new dimensionless(1, 0, "")));
 
     var two_dim_lats: [0..ny-1, 0..nx-1] real = 1.0;
     if latitude_grid == "regular" {
@@ -315,13 +326,13 @@ module climt {
           j += 1;
         }
       } 
-      return_state.add("latitude", new shared DataArray2(two_dim_lats, {y_name, x_name}));
+      return_state.add("latitude", new shared DataArray2(two_dim_lats, {y_name, x_name}, new dimensionless(1, 0, "")));
     } else if latitude_grid == "gaussian" {
       // TODO
     }
 
     var ice_interface_levels: [0..n_ice_interface_levels-1] real = 0.0;
-    return_state.add("height_on_ice_interface_levels", new shared DataArray1(ice_interface_levels, {"ice_interface_levels"}));
+    return_state.add("height_on_ice_interface_levels", new shared DataArray1(ice_interface_levels, {"ice_interface_levels"}, new meter(1, 0, "m")));
 
     return return_state;
   }
@@ -379,8 +390,8 @@ module climt {
     var bk2 = reshape(bk, {0..num_levels-1, 0..0});
 
     var state = new State();
-    state.add("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels", new shared DataArray2(ak2, {"interface_levels", "*"}));
-    state.add("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels", new shared DataArray2(bk2, {"interface_levels", "*"}));
+    state.add("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels", new shared DataArray2(ak2, {"interface_levels", "*"}, new dimensionless(1, 0, "")));
+    state.add("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels", new shared DataArray2(bk2, {"interface_levels", "*"}, new dimensionless(1, 0, "")));
 
     return state;
   }
@@ -402,7 +413,7 @@ module climt {
   proc get_default_state(in components, n_ice_interface_levels: int = 30) {
     var grid_state = get_grid(n_ice_interface_levels=n_ice_interface_levels);
 
-    var properties = new map(string, shared Properties);
+    var properties = new map(string, shared AbstractProperties);
     for component in components {
       for property in component.input_properties.items() {
         properties.add(property[0], property[1]);
