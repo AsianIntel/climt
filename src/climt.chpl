@@ -11,6 +11,7 @@ module climt {
   use marker;
   use HybridSigmaPressure;
   use SlabSurface;
+  use Stepper;
 
   writeln("New library: climt");
 
@@ -429,13 +430,13 @@ module climt {
     return grid_state;
   }
 
-  proc get_dim_lengths_from_raw_input(raw_input: State, input_properties: map(string, shared Properties)) throws {
+  proc get_dim_lengths_from_raw_input(raw_input: State, input_properties: map(string, shared AbstractProperties)) throws {
     var dim_lengths = new map(string, int);
 
     for (name, property) in input_properties.items() {
         var i = 0;
         var ada = raw_input.getValue(name);
-        for dim_name in ada.getDims() {
+        for dim_name in property.getDims() {
           dim_lengths.add(dim_name, ada.getDomShape()[i]);
           i += 1;
         }   
@@ -444,48 +445,41 @@ module climt {
     return dim_lengths;
   }
 
-  proc initialize_arrays_with_properties(output_properties: map(string, shared Properties), input_state: State, input_properties: map(string, shared Properties)) {
+  proc initialize_arrays_with_properties(output_properties: map(string, shared AbstractProperties), input_state: State, input_properties: map(string, shared AbstractProperties)) {
     var dim_lengths = get_dim_lengths_from_raw_input(input_state, input_properties);
 
     var out_dict = new map(string, shared AbstractDataArray);
     for (name, property) in output_properties.items() {
-      var out_shape: [property.dims.size] int;
-      for i in 0..property.dims.size-1 {
-        var dim = property.dims[i];
+      var out_shape: [property.getDims().size] int;
+      var i = 0;
+      var marker = property.getMarker();
+      for dim in property.getDims(){
         out_shape[i] = dim_lengths[dim];
         if (out_shape.size == 1) {
           var out_domain = {0..out_shape[0]};
           var out_array: [out_domain] real = 0.0;
-          out_dict.add(name, new DataArray1(out_array, property.dims));
+          out_dict.add(name, new shared DataArray1(out_array, property.getDims(), marker));
         } else if (out_shape.size == 2) {
-          var out_domain = {0..out_shape[0], 0..out_shape[1]};
-          var out_array: [out_domain] real = 0.0;
-          out_dict.add(name, new DataArray2(out_array, property.dims));
+          // var out_domain = {0..out_shape[0], 0..out_shape[1]};
+          // var out_array: [out_domain] real = 0.0;
+          // out_dict.add(name, new shared DataArray2(out_array, property.getDims(), marker));
         } else if (out_shape.size == 3) {
-          var out_domain = {0..out_shape[0], 0..out_shape[1], 0..out_shape[2]};
-          var out_array: [out_domain] real = 0.0;
-          out_dict.add(name, new DataArray3(out_array, property.dims));
+          // var out_domain = {0..out_shape[0], 0..out_shape[1], 0..out_shape[2]};
+          // var out_array: [out_domain] real = 0.0;
+          // out_dict.add(name, new shared DataArray3(out_array, property.getDims(), marker));
         }
+        i += 1;
       }
     }
 
     return out_dict;
   }
-  // var return_state = get_hybrid_sigma_pressure_levels();
 
-  // var input_properties = new map(string, shared Properties);
-  // input_properties.add("atmosphere_hybrid_sigma_pressure_a_coordinate_on_interface_levels", new shared Properties({"interface_levels", "*"}, new UnitMarker(0, 0, 0, 0, 0, 0, 0, 1, 0, "")));
-  // input_properties.add("atmosphere_hybrid_sigma_pressure_b_coordinate_on_interface_levels", new shared Properties({"interface_levels", "*"}, new UnitMarker(0, 0, 0, 0, 0, 0, 0, 1, 0, "")));
-  // input_properties.add("surface_air_pressure", new shared Properties({"*"}, new UnitMarker(-1, 1, -2, 0, 1, 0, 0, 1, 0, "Pa")));
-
-  // var surface_arr: [0..27, 0..0] real = 1.0 * 1.0132e5;
-  // return_state.add("surface_air_pressure", new shared DataArray2(surface_arr, {"lon", "lat"}));
-
-  // var component = new HybridSigmaPressureDiagnosticComponent();
-  // component.array_call(return_state);
   var slab = new shared SlabSurface();
   var components = [slab];
   var state = get_default_state(components);
+  var timestep = 3*60*60;
 
-  writeln(try! state.getValue("upwelling_shortwave_flux_in_air"));
+  var time_stepper = new AdamsBashforth(components);
+  var (diagnostics, new_state) = time_stepper.call(state, timestep);
 }
